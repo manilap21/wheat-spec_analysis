@@ -1,5 +1,5 @@
 # ================================================================
-# wheatspec_app.py  —  WheatSpec v3 (Max-Contrast Sidebar Edition)
+# wheatspec_app.py  —  WheatSpec v3 (Production Cloud Framework)
 # Manuli Perera | UWA Dissertation 2026 | Open-source MIT
 # ================================================================
 
@@ -224,7 +224,87 @@ def build_ml(use_bayes, use_rf, use_xgb, rf_n, xgb_n, xgb_lr,
     return pipes
 
 # ================================================================
-# DATA AUTO-INGESTION HANDLER
+# SIDEBAR — MASTER UPLOADER WITH CORRECT KEY MATCHING
+# ================================================================
+with st.sidebar:
+    st.markdown("## 📁 Ingestion Hub")
+    uploaded = st.file_uploader("Drop FTIR matrix file below:", type=["csv","xlsx"])
+
+    st.markdown("---")
+    st.markdown("## ⚙️ Preprocessing")
+    apply_snv  = st.checkbox("Standard Normal Variate (SNV)", value=True)
+    sg_deriv   = st.selectbox("Savitzky-Golay derivative", [0,1,2], index=1,
+                               help="0=smooth only · 1=removes baseline · 2=resolves bands")
+    sg_window  = st.slider("SG window size (odd)", 5, 31, 11, 2)
+    sg_poly    = st.slider("SG polynomial order", 1, 4, 2)
+    n_plot     = st.slider("Max spectra to plot", 5, 100, 30, 5)
+
+    st.markdown("---")
+    st.markdown("## 🔬 Models")
+    use_plsr  = st.checkbox("PLSR",          value=True)
+    use_bayes = st.checkbox("BayesianRidge",  value=True)
+    use_rf    = st.checkbox("RandomForest",   value=True)
+    use_xgb   = st.checkbox("XGBoost",        value=True)
+
+    st.markdown("---")
+    st.markdown("## 🎛 Hyperparameters")
+    plsr_max   = st.slider("PLSR max components",    2, 20, 10)
+    test_size  = st.slider("Test fraction",          0.10, 0.40, 0.20, 0.05)
+    rf_n       = st.slider("RF n_estimators",        50, 500, 150, 50)
+    xgb_n      = st.slider("XGBoost n_estimators",   50, 500, 150, 50)
+    xgb_lr     = st.select_slider("XGBoost learning rate", [0.005,0.01,0.02,0.05,0.1,0.2], value=0.05)
+    xgb_depth  = st.slider("XGBoost max_depth",      2, 8, 3)
+    n_pca      = st.slider("XGBoost PCA components", 5, 50, 15)
+
+    st.markdown("---")
+    st.markdown("## 📐 Spectral regions")
+    region_raw = st.text_area("Regions Config (Name | Low | High)",
+        "A1 Moisture | 2990 | 3680\n"
+        "A2 Fat C-H | 2825 | 2990\n"
+        "A3 Fat C=O | 1710 | 1775\n"
+        "A4 Amide I+II | 1480 | 1710\n"
+        "A5 Amide III | 1180 | 1480\n"
+        "A6 Starch | 810 | 1180\n"
+        "Full Spectrum | 650 | 4000", height=180)
+
+    REGIONS = {}
+    for line in region_raw.strip().split("\n"):
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts)==3:
+            try: REGIONS[parts[0]] = (float(parts[1]), float(parts[2]))
+            except: pass
+
+    st.markdown("---")
+    st.markdown("## 📊 Benchmarks")
+    bench_raw = st.text_area("Reference R² Benchmarks (Trait | R²)",
+        "Protein | 0.963\nExtensibility | 0.927\n"
+        "Absorption | 0.700\nRmax | 0.482\nDDT | 0.500", height=130)
+
+    BENCH = {}
+    for line in bench_raw.strip().split("\n"):
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts)==2:
+            try: BENCH[parts[0]] = float(parts[1])
+            except: pass
+
+    st.markdown("---")
+    st.markdown("## 🏷 Column exclusions")
+    excl_raw = st.text_input("Metadata ID strings to ignore:", "Variety,variety,Cultivar,cultivar,Sample,sample,ID,id,Name,name,Seed,seed")
+    EXCL = {c.strip().lower() for c in excl_raw.split(",")}
+
+    st.markdown("---")
+    st.markdown("## 🎨 Cultivar colours")
+    colour_raw = st.text_area("Scatter Hex Codes (Class | Hex)",
+        "MACE | #3B82F6\nSCEPTER | #60A5FA\nCORACK | #0D9488\n"
+        "MAGENTA | #F43F5E\nEMU_ROCK | #F59E0B\nZEN | #10B981", height=140)
+
+    CULT_COLOURS = {}
+    for line in colour_raw.strip().split("\n"):
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts)==2: CULT_COLOURS[parts[0]] = parts[1]
+
+# ================================================================
+# SHARED DATA ARRAYS ALIGNMENT
 # ================================================================
 df = wave_cols = non_wave = trait_cols = all_cols = None
 if uploaded:
@@ -304,7 +384,7 @@ with tab1:
             st.plotly_chart(fig_m, use_container_width=True)
 
 # ──────────────────────────────────────────────────────────────
-# TAB 2 — MECHANICAL PHENOTYPES PREDICTOR
+# TAB 2 — RHEOLOGY PREDICTION
 # ──────────────────────────────────────────────────────────────
 with tab2:
     st.subheader("Dough rheology prediction — all models, any trait, any region")
@@ -493,9 +573,9 @@ with tab3:
                     st.dataframe(res.reset_index(drop=True), use_container_width=True)
                     st.download_button("⬇ Download LDA results", res.to_csv(index=False), "lda_results.csv", "text/csv")
 
-# ──────────────────────────────────────────────────────────────
+# ================================================================
 # TAB 4 — AUTOML TOURNAMENT ENGINE
-# ──────────────────────────────────────────────────────────────
+# ================================================================
 with tab4:
     st.subheader("Full model tournament — all regions × all models")
     st.markdown("""<div class="wbox">⏱ Parallel calibration loop running all selected models across every defined spectral partition window grid.</div>""", unsafe_allow_html=True)
