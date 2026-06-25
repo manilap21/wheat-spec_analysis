@@ -1,5 +1,5 @@
 # ================================================================
-# wheatspec_app.py  —  WheatSpec v3 (Ultra-Contrast Edition)
+# wheatspec_app.py  —  WheatSpec v3 (Max-Contrast Sidebar Edition)
 # Manuli Perera | UWA Dissertation 2026 | Open-source MIT
 # ================================================================
 
@@ -36,7 +36,7 @@ st.set_page_config(
 )
 
 # ================================================================
-# CSS  — High-Contrast White-on-Dark Typography + Times New Roman
+# CSS  — Times New Roman + Max Contrast Text & Sidebar Controls
 # ================================================================
 st.markdown("""
 <style>
@@ -52,10 +52,35 @@ html, body, [class*="css"], div, p, span, label, button, .stTabs, h1, h2, h3, h4
 div[data-testid="stAppViewContainer"] { background-color: #0F172A !important; }
 div[data-testid="stHeader"] { background-color: #0F172A !important; }
 
-/* Global text elements forced to bright chalk-white for optimal contrast */
+/* Main layout text elements forced to bright white */
 .main .stMarkdown p, .main span, .main label, h2, h3, h4, h5, h6 {
     color: #F1F5F9 !important;
     font-size: 11.5pt;
+}
+
+/* ── MAXIMUM SIDEBAR INPUT CONTROLS VISIBILITY ── */
+div[data-testid="stSidebarContent"] { 
+    background: #1E293B !important; 
+    border-right: 2px solid #334155; 
+}
+
+/* Force ALL sidebar text, labels, headers, and checkboxes to absolute glowing white */
+div[data-testid="stSidebarContent"] label, 
+div[data-testid="stSidebarContent"] p, 
+div[data-testid="stSidebarContent"] span,
+div[data-testid="stSidebarContent"] h2,
+div[data-testid="stSidebarContent"] h3,
+div[data-testid="stSidebarContent"] div {
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+}
+
+/* Specifically brighten slider numbers and small text area captions */
+div[data-testid="stSidebarContent"] small,
+div[data-testid="stSidebarContent"] [data-testid="stWidgetLabel"] p,
+div[data-testid="stSidebarContent"] .stCaption {
+    color: #CBD5E1 !important;
+    font-weight: 400 !important;
 }
 
 /* ── Premium Midnight Hero Title Block ── */
@@ -108,14 +133,6 @@ div[data-testid="stHeader"] { background-color: #0F172A !important; }
 /* ── Publication Section Labels ── */
 .slabel { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.08em;
           color: #94A3B8; font-weight: 700; margin: 1.6rem 0 0.6rem; }
-
-/* ── Sidebar Panels & Input Fields Overrides ── */
-div[data-testid="stSidebarContent"] { background: #1E293B !important; border-right: 2px solid #334155; }
-div[data-testid="stSidebarContent"] .stMarkdown p, div[data-testid="stSidebarContent"] label, div[data-testid="stSidebarContent"] caption { 
-    color: #FFFFFF !important; 
-    font-size: 11pt;
-}
-div[data-testid="stSidebarContent"] .stCaption { color: #CBD5E1 !important; font-size: 9.5pt; }
 
 /* Tab Bar Adjustments */
 .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #0F172A; padding: 4px; border-radius: 8px; }
@@ -207,107 +224,7 @@ def build_ml(use_bayes, use_rf, use_xgb, rf_n, xgb_n, xgb_lr,
     return pipes
 
 # ================================================================
-# HERO BANNER
-# ================================================================
-st.markdown("""
-<div class="hero">
-  <h1>🌾 WheatSpec</h1>
-  <p>Open-source FTIR chemometrics platform for wheat quality prediction.<br>
-  Upload any spectral matrix — configure regions, benchmarks, and models — get results instantly.</p>
-  <div class="hero-chips">
-    <span class="chip">PLSR</span>
-    <span class="chip">Bayesian Ridge</span>
-    <span class="chip">Random Forest</span>
-    <span class="chip">XGBoost</span>
-    <span class="chip">LDA Variety ID</span>
-    <span class="chip">Kelly et al. 2023</span>
-    <span class="chip">UWA Dissertation 2026</span>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ================================================================
-# SIDEBAR — REWORKED TO PREVENT DOUBLE-DRAW CHECKS
-# ================================================================
-with st.sidebar:
-    st.markdown("## 📁 Ingestion Hub")
-    uploaded = st.file_uploader("Drop FTIR matrix file below:", type=["csv","xlsx"])
-
-    st.markdown("---")
-    st.markdown("## ⚙️ Preprocessing")
-    apply_snv  = st.checkbox("Standard Normal Variate (SNV)", value=True)
-    sg_deriv   = st.selectbox("Savitzky-Golay derivative", [0,1,2], index=1,
-                               help="0=smooth only · 1=removes baseline · 2=resolves bands")
-    sg_window  = st.slider("SG window size (odd)", 5, 31, 11, 2)
-    sg_poly    = st.slider("SG polynomial order", 1, 4, 2)
-    n_plot     = st.slider("Max spectra to plot", 5, 100, 30, 5)
-
-    st.markdown("---")
-    st.markdown("## 🔬 Models")
-    use_plsr  = st.checkbox("PLSR",          value=True)
-    use_bayes = st.checkbox("BayesianRidge",  value=True)
-    use_rf    = st.checkbox("RandomForest",   value=True)
-    use_xgb   = st.checkbox("XGBoost",        value=True)
-
-    st.markdown("---")
-    st.markdown("## 🎛 Hyperparameters")
-    plsr_max   = st.slider("PLSR max components",    2, 20, 10)
-    test_size  = st.slider("Test fraction",          0.10, 0.40, 0.20, 0.05)
-    rf_n       = st.slider("RF n_estimators",        50, 500, 150, 50)
-    xgb_n      = st.slider("XGBoost n_estimators",   50, 500, 150, 50)
-    xgb_lr     = st.select_slider("XGBoost learning rate", [0.005,0.01,0.02,0.05,0.1,0.2], value=0.05)
-    xgb_depth  = st.slider("XGBoost max_depth",      2, 8, 3)
-    n_pca      = st.slider("XGBoost PCA components", 5, 50, 15)
-
-    st.markdown("---")
-    st.markdown("## 📐 Spectral regions")
-    region_raw = st.text_area("Regions Config (Name | Low | High)",
-        "A1 Moisture | 2990 | 3680\n"
-        "A2 Fat C-H | 2825 | 2990\n"
-        "A3 Fat C=O | 1710 | 1775\n"
-        "A4 Amide I+II | 1480 | 1710\n"
-        "A5 Amide III | 1180 | 1480\n"
-        "A6 Starch | 810 | 1180\n"
-        "Full Spectrum | 650 | 4000", height=180)
-
-    REGIONS = {}
-    for line in region_raw.strip().split("\n"):
-        parts = [p.strip() for p in line.split("|")]
-        if len(parts)==3:
-            try: REGIONS[parts[0]] = (float(parts[1]), float(parts[2]))
-            except: pass
-
-    st.markdown("---")
-    st.markdown("## 📊 Benchmarks")
-    bench_raw = st.text_area("Reference R² Benchmarks (Trait | R²)",
-        "Protein | 0.963\nExtensibility | 0.927\n"
-        "Absorption | 0.700\nRmax | 0.482\nDDT | 0.500", height=130)
-
-    BENCH = {}
-    for line in bench_raw.strip().split("\n"):
-        parts = [p.strip() for p in line.split("|")]
-        if len(parts)==2:
-            try: BENCH[parts[0]] = float(parts[1])
-            except: pass
-
-    st.markdown("---")
-    st.markdown("## 🏷 Column exclusions")
-    excl_raw = st.text_input("Metadata ID strings to ignore:", "Variety,variety,Cultivar,cultivar,Sample,sample,ID,id,Name,name,Seed,seed")
-    EXCL = {c.strip().lower() for c in excl_raw.split(",")}
-
-    st.markdown("---")
-    st.markdown("## 🎨 Cultivar colours")
-    colour_raw = st.text_area("Scatter Hex Codes (Class | Hex)",
-        "MACE | #3B82F6\nSCEPTER | #60A5FA\nCORACK | #0D9488\n"
-        "MAGENTA | #F43F5E\nEMU_ROCK | #F59E0B\nZEN | #10B981", height=140)
-
-    CULT_COLOURS = {}
-    for line in colour_raw.strip().split("\n"):
-        parts = [p.strip() for p in line.split("|")]
-        if len(parts)==2: CULT_COLOURS[parts[0]] = parts[1]
-
-# ================================================================
-# SHARED DATA PREP
+# DATA AUTO-INGESTION HANDLER
 # ================================================================
 df = wave_cols = non_wave = trait_cols = all_cols = None
 if uploaded:
@@ -318,7 +235,7 @@ if uploaded:
     all_cols   = list(df.columns)
 
 # ================================================================
-# TABS
+# INTERACTIVE WORKSPACE CHANNELS
 # ================================================================
 tab1, tab2, tab3, tab4 = st.tabs([
     "📈 Spectral preprocessing",
@@ -328,7 +245,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # ──────────────────────────────────────────────────────────────
-# TAB 1 — PREPROCESSING
+# TAB 1 — PREPROCESSING MONITOR
 # ──────────────────────────────────────────────────────────────
 with tab1:
     st.subheader("Real-time spectral preprocessing monitor")
@@ -387,7 +304,7 @@ with tab1:
             st.plotly_chart(fig_m, use_container_width=True)
 
 # ──────────────────────────────────────────────────────────────
-# TAB 2 — RHEOLOGY PREDICTION
+# TAB 2 — MECHANICAL PHENOTYPES PREDICTOR
 # ──────────────────────────────────────────────────────────────
 with tab2:
     st.subheader("Dough rheology prediction — all models, any trait, any region")
@@ -476,7 +393,7 @@ with tab2:
                 st.download_button("⬇ Download results CSV", exp.to_csv(index=False), f"{sel_trait}_{sel_region}.csv", "text/csv")
 
 # ──────────────────────────────────────────────────────────────
-# TAB 3 — VARIETY CLASSIFICATION (LDA)
+# TAB 3 — VARIETY VERIFICATION (LDA)
 # ──────────────────────────────────────────────────────────────
 with tab3:
     st.subheader("Variety classification — LDA across spectral regions")
@@ -577,7 +494,7 @@ with tab3:
                     st.download_button("⬇ Download LDA results", res.to_csv(index=False), "lda_results.csv", "text/csv")
 
 # ──────────────────────────────────────────────────────────────
-# TAB 4 — FULL TOURNAMENT
+# TAB 4 — AUTOML TOURNAMENT ENGINE
 # ──────────────────────────────────────────────────────────────
 with tab4:
     st.subheader("Full model tournament — all regions × all models")
