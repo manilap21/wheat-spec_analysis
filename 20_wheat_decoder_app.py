@@ -182,4 +182,491 @@ def optimise_plsr(X_tr, y_tr, max_comp):
     if mc < 1: return 1, [0.0]
     scores = []
     for n in range(1, mc+1):
-        yc = cross_
+        yc = cross_val_predict(PLSRegression(n_components=n), X_tr, y_tr, cv=LeaveOneOut())
+        scores.append(np.sqrt(mean_squared_error(y_tr, yc)))
+    best = next(i+1 for i,v in enumerate(scores) if v <= min(scores)*1.01)
+    return best, scores
+
+def build_ml(use_bayes, use_rf, use_xgb, rf_n, xgb_n, xgb_lr,
+             xgb_depth, n_pca, X_tr):
+    pipes = {}
+    n_safe = min(n_pca, X_tr.shape[1], X_tr.shape[0]-1)
+    if use_bayes:
+        pipes["BayesianRidge"] = Pipeline([("sc",StandardScaler()),("m",BayesianRidge())])
+    if use_rf:
+        pipes["RandomForest"]  = Pipeline([
+            ("sc",StandardScaler()),
+            ("m",RandomForestRegressor(n_estimators=rf_n, max_features="sqrt",
+                                       random_state=42, n_jobs=-1))])
+    if use_xgb and n_safe>=1:
+        pipes["XGBoost"] = Pipeline([
+            ("pca",PCA(n_components=n_safe, random_state=42)),
+            ("m",XGBRegressor(n_estimators=xgb_n, learning_rate=xgb_lr,
+                               max_depth=xgb_depth, subsample=0.8,
+                               random_state=42, verbosity=0))])
+    return pipes
+
+# ================================================================
+# HERO BANNER
+# ================================================================
+st.markdown("""
+<div class="hero">
+  <h1>🌾 WheatSpec</h1>
+  <p>Open-source FTIR chemometrics platform for wheat quality prediction.<br>
+  Upload any spectral matrix — configure regions, benchmarks, and models — get results instantly.</p>
+  <div class="hero-chips">
+    <span class="chip">PLSR</span>
+    <span class="chip">Bayesian Ridge</span>
+    <span class="chip">Random Forest</span>
+    <span class="chip">XGBoost</span>
+    <span class="chip">LDA Variety ID</span>
+    <span class="chip">Kelly et al. 2023</span>
+    <span class="chip">UWA Dissertation 2026</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ================================================================
+# SIDEBAR — REWORKED TO PREVENT DOUBLE-DRAW CHECKS
+# ================================================================
+with st.sidebar:
+    st.markdown("## 📁 Ingestion Hub")
+    uploaded = st.file_uploader("Drop FTIR matrix file below:", type=["csv","xlsx"])
+
+    st.markdown("---")
+    st.markdown("## ⚙️ Preprocessing")
+    apply_snv  = st.checkbox("Standard Normal Variate (SNV)", value=True)
+    sg_deriv   = st.selectbox("Savitzky-Golay derivative", [0,1,2], index=1,
+                               help="0=smooth only · 1=removes baseline · 2=resolves bands")
+    sg_window  = st.slider("SG window size (odd)", 5, 31, 11, 2)
+    sg_poly    = st.slider("SG polynomial order", 1, 4, 2)
+    n_plot     = st.slider("Max spectra to plot", 5, 100, 30, 5)
+
+    st.markdown("---")
+    st.markdown("## 🔬 Models")
+    use_plsr  = st.checkbox("PLSR",          value=True)
+    use_bayes = st.checkbox("BayesianRidge",  value=True)
+    use_rf    = st.checkbox("RandomForest",   value=True)
+    use_xgb   = st.checkbox("XGBoost",        value=True)
+
+    st.markdown("---")
+    st.markdown("## 🎛 Hyperparameters")
+    plsr_max   = st.slider("PLSR max components",    2, 20, 10)
+    test_size  = st.slider("Test fraction",          0.10, 0.40, 0.20, 0.05)
+    rf_n       = st.slider("RF n_estimators",        50, 500, 150, 50)
+    xgb_n      = st.slider("XGBoost n_estimators",   50, 500, 150, 50)
+    xgb_lr     = st.select_slider("XGBoost learning rate", [0.005,0.01,0.02,0.05,0.1,0.2], value=0.05)
+    xgb_depth  = st.slider("XGBoost max_depth",      2, 8, 3)
+    n_pca      = st.slider("XGBoost PCA components", 5, 50, 15)
+
+    st.markdown("---")
+    st.markdown("## 📐 Spectral regions")
+    region_raw = st.text_area("Regions Config (Name | Low | High)",
+        "A1 Moisture | 2990 | 3680\n"
+        "A2 Fat C-H | 2825 | 2990\n"
+        "A3 Fat C=O | 1710 | 1775\n"
+        "A4 Amide I+II | 1480 | 1710\n"
+        "A5 Amide III | 1180 | 1480\n"
+        "A6 Starch | 810 | 1180\n"
+        "Full Spectrum | 650 | 4000", height=180)
+
+    REGIONS = {}
+    for line in region_raw.strip().split("\n"):
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts)==3:
+            try: REGIONS[parts[0]] = (float(parts[1]), float(parts[2]))
+            except: pass
+
+    st.markdown("---")
+    st.markdown("## 📊 Benchmarks")
+    bench_raw = st.text_area("Reference R² Benchmarks (Trait | R²)",
+        "Protein | 0.963\nExtensibility | 0.927\n"
+        "Absorption | 0.700\nRmax | 0.482\nDDT | 0.500", height=130)
+
+    BENCH = {}
+    for line in bench_raw.strip().split("\n"):
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts)==2:
+            try: BENCH[parts[0]] = float(parts[1])
+            except: pass
+
+    st.markdown("---")
+    st.markdown("## 🏷 Column exclusions")
+    excl_raw = st.text_input("Metadata ID strings to ignore:", "Variety,variety,Cultivar,cultivar,Sample,sample,ID,id,Name,name,Seed,seed")
+    EXCL = {c.strip().lower() for c in excl_raw.split(",")}
+
+    st.markdown("---")
+    st.markdown("## 🎨 Cultivar colours")
+    colour_raw = st.text_area("Scatter Hex Codes (Class | Hex)",
+        "MACE | #3B82F6\nSCEPTER | #60A5FA\nCORACK | #0D9488\n"
+        "MAGENTA | #F43F5E\nEMU_ROCK | #F59E0B\nZEN | #10B981", height=140)
+
+    CULT_COLOURS = {}
+    for line in colour_raw.strip().split("\n"):
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts)==2: CULT_COLOURS[parts[0]] = parts[1]
+
+# ================================================================
+# SHARED DATA PREP
+# ================================================================
+df = wave_cols = non_wave = trait_cols = all_cols = None
+if uploaded:
+    df         = load_file(uploaded)
+    wave_cols  = get_wave_cols(df)
+    non_wave   = [c for c in df.columns if c not in wave_cols]
+    trait_cols = [c for c in non_wave if c.strip().lower() not in EXCL]
+    all_cols   = list(df.columns)
+
+# ================================================================
+# TABS
+# ================================================================
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📈 Spectral preprocessing",
+    "📊 Rheology prediction",
+    "🔬 Variety classification",
+    "🏆 Model tournament",
+])
+
+# ──────────────────────────────────────────────────────────────
+# TAB 1 — PREPROCESSING
+# ──────────────────────────────────────────────────────────────
+with tab1:
+    st.subheader("Real-time spectral preprocessing monitor")
+
+    if df is None:
+        st.markdown('<div class="ibox">📁 Upload a spectral matrix in the sidebar to begin.</div>', unsafe_allow_html=True)
+    elif len(wave_cols) < 5:
+        st.error("Fewer than 5 numeric wavenumber columns detected — check file format.")
+    else:
+        st.success(f"**{df.shape[0]} samples** · **{len(wave_cols)} spectral points** · **{len(trait_cols)} trait columns** detected")
+
+        id_col = st.selectbox("Sample label column (hover labels in plot)", ["(none)"] + non_wave)
+        if id_col == "(none)": id_col = None
+
+        X_raw  = df[wave_cols].values.astype(float)
+        X_proc = preprocess(X_raw, apply_snv, sg_deriv, sg_window, sg_poly)
+        wn     = [float(c) for c in wave_cols]
+        labels = df[id_col].astype(str).values if id_col else [f"Sample {i}" for i in range(len(df))]
+        n_show = min(n_plot, len(df))
+
+        ca, cb = st.columns(2)
+        for col, data, title in [(ca, X_raw, "Raw spectra"), (cb, X_proc, "After preprocessing")]:
+            with col:
+                st.markdown(f'<p class="slabel">{title}</p>', unsafe_allow_html=True)
+                fig = go.Figure()
+                for i in range(n_show):
+                    fig.add_trace(go.Scatter(x=wn, y=data[i], mode="lines", name=labels[i], line=dict(width=0.9), opacity=0.75))
+                fig.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155"),
+                                   yaxis_title="Intensity", height=330, template="plotly_dark", 
+                                   paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', showlegend=False, margin=dict(l=40,r=10,t=20,b=40))
+                st.plotly_chart(fig, use_container_width=True)
+
+        if REGIONS:
+            st.markdown('<p class="slabel">Kelly spectral regions overlay</p>', unsafe_allow_html=True)
+            palette = px.colors.qualitative.Pastel
+            fig_r = go.Figure()
+            for i in range(n_show):
+                fig_r.add_trace(go.Scatter(x=wn, y=X_proc[i], mode="lines", line=dict(width=0.7, color="#94A3B8"), opacity=0.35, showlegend=False))
+            for idx, (rn, (lo, hi)) in enumerate(REGIONS.items()):
+                fig_r.add_vrect(x0=lo, x1=hi, fillcolor=palette[idx % len(palette)], opacity=0.18, layer="below", line_width=0,
+                                 annotation_text=rn.split(" ")[0], annotation_position="top left", annotation_font_color="#FFFFFF", annotation_font_size=10)
+            fig_r.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155"),
+                                yaxis_title="Processed intensity", height=370, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=40,b=40))
+            st.plotly_chart(fig_r, use_container_width=True)
+
+        if id_col:
+            st.markdown('<p class="slabel">Mean spectrum per class</p>', unsafe_allow_html=True)
+            df_proc = pd.DataFrame(X_proc, columns=wave_cols)
+            df_proc["_label"] = labels
+            fig_m = go.Figure()
+            for grp, sub in df_proc.groupby("_label"):
+                mean_spec = sub.drop("_label", axis=1).mean()
+                fig_m.add_trace(go.Scatter(x=wn, y=mean_spec.values, mode="lines", name=str(grp), line=dict(width=2.0)))
+            fig_m.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155"),
+                                  yaxis_title="Mean intensity", height=320, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=20,b=40))
+            st.plotly_chart(fig_m, use_container_width=True)
+
+# ──────────────────────────────────────────────────────────────
+# TAB 2 — RHEOLOGY PREDICTION
+# ──────────────────────────────────────────────────────────────
+with tab2:
+    st.subheader("Dough rheology prediction — all models, any trait, any region")
+
+    if df is None:
+        st.markdown('<div class="ibox">📁 Upload data in the sidebar to begin.</div>', unsafe_allow_html=True)
+    elif not trait_cols:
+        st.markdown('<div class="wbox">No trait columns detected. Adjust exclusion layers.</div>', unsafe_allow_html=True)
+    elif not REGIONS:
+        st.markdown('<div class="wbox">No spectral regions defined.</div>', unsafe_allow_html=True)
+    elif not any([use_plsr, use_bayes, use_rf, use_xgb]):
+        st.markdown('<div class="wbox">Select at least one model in the sidebar.</div>', unsafe_allow_html=True)
+    else:
+        c1, c2 = st.columns(2)
+        with c1: sel_trait  = st.selectbox("Trait", trait_cols)
+        with c2: sel_region = st.selectbox("Spectral region", list(REGIONS.keys()))
+
+        bench = BENCH.get(sel_trait)
+        if bench:
+            st.markdown(f'<div class="kbox">📖 <strong>Benchmark R² for {sel_trait}:</strong> {bench} — from your sidebar benchmark settings</div>', unsafe_allow_html=True)
+
+        if st.button("▶ Run prediction", type="primary"):
+            df_t = df.dropna(subset=[sel_trait])
+            lo, hi = REGIONS[sel_region]
+            rc = filter_region(wave_cols, lo, hi)
+
+            if len(rc) < 3:
+                st.error(f"Only {len(rc)} spectral points in {sel_region}. Choose a wider region.")
+            else:
+                X_raw = df_t[rc].values.astype(float)
+                X     = preprocess(X_raw, apply_snv, sg_deriv, sg_window, sg_poly)
+                y     = df_t[sel_trait].values.astype(float)
+                X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=test_size, random_state=42)
+
+                results = []
+                rmsecv_curve = None
+
+                if use_plsr:
+                    with st.spinner("Optimising PLSR via LOO cross-validation…"):
+                        best_n, scores = optimise_plsr(X_tr, y_tr, plsr_max)
+                        rmsecv_curve = (best_n, scores)
+                        pls = PLSRegression(n_components=best_n)
+                        pls.fit(X_tr, y_tr)
+                        yp = pls.predict(X_te).ravel()
+                        results.append({"Model": f"PLSR ({best_n} comp)", "color":"", "R²": round(r2_score(y_te, yp), 4), "RPD": round(rpd_v(y_te, yp), 3), "y_pred": yp})
+
+                ml = build_ml(use_bayes, use_rf, use_xgb, rf_n, xgb_n, xgb_lr, xgb_depth, n_pca, X_tr)
+                colors = {"BayesianRidge":"blue", "RandomForest":"", "XGBoost":"purple"}
+                for mname, pipe in ml.items():
+                    with st.spinner(f"Fitting {mname}…"):
+                        try:
+                            pipe.fit(X_tr, y_tr)
+                            yp = pipe.predict(X_te).ravel()
+                            results.append({"Model": mname, "color": colors.get(mname,""), "R²": round(r2_score(y_te, yp), 4), "RPD": round(rpd_v(y_te, yp), 3), "y_pred": yp})
+                        except Exception as e:
+                            st.warning(f"{mname}: {e}")
+
+                st.markdown('<p class="slabel">Results Leaderboard</p>', unsafe_allow_html=True)
+                cols = st.columns(len(results))
+                for col, res in zip(cols, results):
+                    gr, bc = rpd_badge(res["RPD"])
+                    diff = round(res["R²"]-bench, 4) if bench else None
+                    with col: st.markdown(mcard(res["Model"], res["R²"], f"RPD {res['RPD']}", gr, bc, diff, res["color"]), unsafe_allow_html=True)
+
+                st.markdown('<p class="slabel">Predicted vs actual parity coordinates</p>', unsafe_allow_html=True)
+                nc  = len(results)
+                fig = make_subplots(rows=1, cols=nc, subplot_titles=[r["Model"] for r in results])
+                lims= [y_te.min()-y_te.std()*0.1, y_te.max()+y_te.std()*0.1]
+                pal = ["#22C55E","#3B82F6","#F59E0B","#8B5CF6"]
+                for i, res in enumerate(results, 1):
+                    fig.add_trace(go.Scatter(x=y_te, y=res["y_pred"], mode="markers", marker=dict(color=pal[(i-1)%len(pal)], size=7, opacity=0.85, line=dict(color="#1E293B",width=0.5)), showlegend=False), row=1, col=i)
+                    fig.add_trace(go.Scatter(x=lims, y=lims, mode="lines", line=dict(color="#475569",dash="dash",width=1.2), showlegend=False), row=1, col=i)
+                fig.update_layout(height=310, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=30,r=10,t=40,b=30))
+                st.plotly_chart(fig, use_container_width=True)
+
+                if rmsecv_curve:
+                    bn, sc = rmsecv_curve
+                    st.markdown('<p class="slabel">PLSR LOO RMSECV Latent Space Optimisation</p>', unsafe_allow_html=True)
+                    fc = px.line(x=list(range(1, len(sc)+1)), y=sc, markers=True, labels={"x":"Components","y":"RMSECV"}, color_discrete_sequence=["#22C55E"])
+                    fc.add_vline(x=bn, line_dash="dash", line_color="#F59E0B", annotation_text=f"Optimal n={bn}", annotation_position="top right")
+                    fc.update_layout(height=250, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=20,b=40))
+                    st.plotly_chart(fc, use_container_width=True)
+
+                exp = pd.DataFrame([{k:v for k,v in r.items() if k not in ("y_pred","color")} for r in results])
+                exp["Benchmark_R2"] = bench
+                st.download_button("⬇ Download results CSV", exp.to_csv(index=False), f"{sel_trait}_{sel_region}.csv", "text/csv")
+
+# ──────────────────────────────────────────────────────────────
+# TAB 3 — VARIETY CLASSIFICATION (LDA)
+# ──────────────────────────────────────────────────────────────
+with tab3:
+    st.subheader("Variety classification — LDA across spectral regions")
+
+    if df is None:
+        st.markdown('<div class="ibox">📁 Upload data in the sidebar to begin.</div>', unsafe_allow_html=True)
+    elif not non_wave:
+        st.warning("No non-spectral columns located.")
+    else:
+        c1, c2 = st.columns(2)
+        with c1:
+            var_col   = st.selectbox("Variety / cultivar column", non_wave)
+            lda_bench = st.number_input("Classification accuracy benchmark (%)", 0.0, 100.0, 80.0, 1.0) / 100
+            upper_case = st.checkbox("Auto-uppercase variety labels", value=True)
+        with c2:
+            prep_opts = { "Raw": (False, 0), "SG only": (False, sg_deriv), "SNV only": (True, 0), "SNV + SG": (True, sg_deriv) }
+            sel_preps = st.multiselect("Preprocessing combos to test", list(prep_opts.keys()), default=["Raw","SNV + SG"])
+            show_3d = st.checkbox("Show 3D LDA scatter plane", value=True)
+            filter_classes = st.text_input("Filter specific varieties (comma-separated, blank = all)", value="")
+
+        if st.button("▶ Run LDA classification", type="primary"):
+            df_v = df.dropna(subset=[var_col]).copy()
+            if upper_case: df_v[var_col] = df_v[var_col].astype(str).str.upper().str.strip()
+            if filter_classes.strip():
+                keep = [v.strip().upper() for v in filter_classes.split(",")]
+                df_v = df_v[df_v[var_col].isin(keep)]
+
+            le    = LabelEncoder()
+            y_v   = le.fit_transform(df_v[var_col])
+            names = list(le.classes_)
+            nc    = len(names)
+
+            if nc < 2:
+                st.error("Need ≥ 2 valid variety classes.")
+            else:
+                st.markdown(f'<div class="ibox">Active Classes: <b>{", ".join(names)}</b> · Rows: {len(df_v)}</div>', unsafe_allow_html=True)
+                records = []
+                total = len(REGIONS) * len(sel_preps)
+                prog  = st.progress(0); step = 0
+
+                for rname, (lo, hi) in REGIONS.items():
+                    rc = filter_region(wave_cols, lo, hi)
+                    if len(rc) < 3: step+=len(sel_preps); continue
+                    X_r = df_v[rc].values.astype(float)
+
+                    for pname in sel_preps:
+                        snv_, sg_ = prep_opts[pname]
+                        Xp = preprocess(X_r, snv_, sg_, sg_window, sg_poly)
+                        Xs = StandardScaler().fit_transform(Xp)
+                        try:
+                            yp  = cross_val_predict(LinearDiscriminantAnalysis(), Xs, y_v, cv=LeaveOneOut())
+                            acc = accuracy_score(y_v, yp)
+                            per = {names[i]: round(accuracy_score(y_v[y_v==i], yp[y_v==i]),3) for i in range(nc) if (y_v==i).sum()>0}
+                            records.append({ "Region":rname, "Preprocessing":pname, "Accuracy":round(acc,4), **{f"Acc_{v}":a for v,a in per.items()} })
+                        except Exception: pass
+                        step+=1; prog.progress(step/total)
+
+                prog.empty()
+                if not records: st.error("LDA failed on all tracking configurations.")
+                else:
+                    res = pd.DataFrame(records).sort_values("Accuracy", ascending=False)
+                    best = res.iloc[0]
+                    diff = best["Accuracy"] - lda_bench
+                    c = "#4ADE80" if diff>=0 else "#F87171"
+
+                    st.markdown(f"""<div class="mcard" style="max-width:380px"><div class="mlabel">Best configuration</div><div class="mvalue">{best['Accuracy']:.1%}</div><div class="msub">{best['Region']} · {best['Preprocessing']}</div><div class="mdiff" style="color:{c}">{"↑" if diff>=0 else "↓"} {diff:+.1%} vs benchmark ({lda_bench:.0%})</div></div>""", unsafe_allow_html=True)
+
+                    pivot = res.pivot_table(index="Region", columns="Preprocessing", values="Accuracy", aggfunc="max")
+                    fig_hm = px.imshow(pivot, text_auto=".0%", color_continuous_scale="RdYlGn", zmin=max(0.2, lda_bench-0.3), zmax=1.0)
+                    fig_hm.update_layout(height=max(280,len(REGIONS)*48), template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=10,r=10,t=20,b=10))
+                    st.plotly_chart(fig_hm, use_container_width=True)
+
+                    if show_3d:
+                        best_rname = best["Region"]
+                        lo2, hi2   = REGIONS[best_rname]
+                        rc2 = filter_region(wave_cols, lo2, hi2)
+                        snv_, sg_  = prep_opts[best["Preprocessing"]]
+                        Xp2 = preprocess(df_v[rc2].values.astype(float), snv_, sg_, sg_window, sg_poly)
+                        Xs2 = StandardScaler().fit_transform(Xp2)
+                        n_lda_comp = min(3, nc-1, Xs2.shape[1])
+                        n_pca_comp = min(min(12, Xs2.shape[1], Xs2.shape[0]-1))
+                        X_pca2 = PCA(n_components=n_pca_comp, random_state=42).fit_transform(Xs2)
+                        X_lda2 = LinearDiscriminantAnalysis(n_components=n_lda_comp).fit_transform(X_pca2, y_v)
+
+                        df3d = pd.DataFrame(X_lda2, columns=[f"LD{i+1}" for i in range(n_lda_comp)])
+                        df3d["Variety"] = names[y_v] if len(y_v)==len(df3d) else df_v[var_col].values
+                        colour_map = {k:v for k,v in {v: CULT_COLOURS.get(v, None) for v in names}.items() if v}
+
+                        st.markdown(f'<p class="slabel">3D LDA variety discriminant plane space — best region: {best_rname}</p>', unsafe_allow_html=True)
+                        if n_lda_comp >= 3: fig3d = px.scatter_3d(df3d, x="LD1", y="LD2", z="LD3", color="Variety", color_discrete_map=colour_map, opacity=0.9)
+                        else: fig3d = px.scatter(df3d, x="LD1", y="LD2" if n_lda_comp>=2 else "LD1", color="Variety", color_discrete_map=colour_map, opacity=0.9)
+                        fig3d.update_traces(marker=dict(size=6, line=dict(width=0.5, color='#1E293B')))
+                        fig3d.update_layout(height=520, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=0,r=0,t=30,b=0))
+                        st.plotly_chart(fig3d, use_container_width=True)
+
+                    st.markdown('<p class="slabel">Exhaustive Evaluation Logs</p>', unsafe_allow_html=True)
+                    st.dataframe(res.reset_index(drop=True), use_container_width=True)
+                    st.download_button("⬇ Download LDA results", res.to_csv(index=False), "lda_results.csv", "text/csv")
+
+# ──────────────────────────────────────────────────────────────
+# TAB 4 — FULL TOURNAMENT
+# ──────────────────────────────────────────────────────────────
+with tab4:
+    st.subheader("Full model tournament — all regions × all models")
+    st.markdown("""<div class="wbox">⏱ Parallel calibration loop running all selected models across every defined spectral partition window grid.</div>""", unsafe_allow_html=True)
+
+    if df is None: st.markdown('<div class="ibox">📁 Upload data in the sidebar to begin.</div>', unsafe_allow_html=True)
+    elif not trait_cols: st.warning("No parameters located in trait array columns.")
+    elif not REGIONS: st.warning("No regional spectra slices defined.")
+    elif not any([use_plsr,use_bayes,use_rf,use_xgb]): st.warning("Activate at least one validation core checkbox.")
+    else:
+        sel_targets = st.multiselect("Traits to include in tournament", trait_cols, default=trait_cols[:min(3,len(trait_cols))])
+
+        if st.button("▶ Launch tournament", type="primary") and sel_targets:
+            all_rec = []
+            total   = len(sel_targets)*len(REGIONS)
+            prog    = st.progress(0); status = st.empty(); step = 0
+
+            for target in sel_targets:
+                df_t  = df.dropna(subset=[target])
+                y_all = df_t[target].values.astype(float)
+                bench = BENCH.get(target)
+
+                for rname, (lo, hi) in REGIONS.items():
+                    rc = filter_region(wave_cols, lo, hi)
+                    status.text(f"Running: {target} × {rname}…")
+                    if len(rc) < 3: step+=1; prog.progress(step/total); continue
+
+                    X_raw = df_t[rc].values.astype(float)
+                    X     = preprocess(X_raw, apply_snv, sg_deriv, sg_window, sg_poly)
+                    X_tr, X_te, y_tr, y_te = train_test_split(X, y_all, test_size=test_size, random_state=42)
+
+                    def _rec(mn, yp):
+                        r2  = round(r2_score(y_te,yp),4)
+                        rpd = round(rpd_v(y_te,yp),3)
+                        gr, _ = rpd_badge(rpd)
+                        return {"Target":target,"Region":rname,"Model":mn,"R²":r2,"RPD":rpd,"Grade":gr, "Benchmark":bench, "vs_Benchmark":round(r2-bench,4) if bench else None}
+
+                    if use_plsr:
+                        try:
+                            bn,_ = optimise_plsr(X_tr, y_tr, plsr_max)
+                            pls  = PLSRegression(n_components=bn)
+                            pls.fit(X_tr, y_tr)
+                            all_rec.append(_rec(f"PLSR({bn})", pls.predict(X_te).ravel()))
+                        except Exception: pass
+
+                    ml = build_ml(use_bayes,use_rf,use_xgb,rf_n,xgb_n,xgb_lr,xgb_depth,n_pca,X_tr)
+                    for mn, pipe in ml.items():
+                        try:
+                            pipe.fit(X_tr, y_tr)
+                            all_rec.append(_rec(mn, pipe.predict(X_te).ravel()))
+                        except Exception: pass
+
+                    step+=1; prog.progress(step/total)
+
+            prog.empty(); status.empty()
+
+            if not all_rec: st.error("Validation loop yielded zero output arrays.")
+            else:
+                res_df = pd.DataFrame(all_rec)
+
+                st.markdown('<p class="slabel">Tournament Winner Standings</p>', unsafe_allow_html=True)
+                best_df = (res_df.sort_values("R²", ascending=False).groupby("Target").first().reset_index())
+                cols = st.columns(min(len(best_df),5))
+                for col, row in zip(cols, best_df.itertuples()):
+                    gr, bc = rpd_badge(row.RPD)
+                    with col: st.markdown(mcard(row.Target, row._5, f"{row.Model} · {str(row.Region)[:14]}", gr, bc, row.vs_Benchmark), unsafe_allow_html=True)
+
+                st.markdown('<p class="slabel">R² Performance Scaling by Region and Model Architecture</p>', unsafe_allow_html=True)
+                for target in sel_targets:
+                    sub = res_df[res_df["Target"]==target]
+                    fig = px.bar(sub, x="Region", y="R²", color="Model", barmode="group", title=target, color_discrete_sequence=px.colors.qualitative.Set2)
+                    b = BENCH.get(target)
+                    if b: fig.add_hline(y=b, line_dash="dash", line_color="#F59E0B", annotation_text=f"Benchmark {b}", annotation_position="top right")
+                    fig.update_layout(height=330, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=40,b=90), xaxis_tickangle=-30)
+                    st.plotly_chart(fig, use_container_width=True)
+
+                st.markdown('<p class="slabel">Global Leaderboard Floorgrid Matrix</p>', unsafe_allow_html=True)
+                def _highlight(row):
+                    if row["R²"] == res_df["R²"].max(): return ["background:#14532D;font-weight:700;color:#22C55E"]*len(row)
+                    return [""]*len(row)
+
+                st.dataframe(res_df.drop(columns=["Benchmark"], errors="ignore").style.apply(_highlight, axis=1), use_container_width=True)
+                st.download_button("⬇ Download full results CSV", res_df.to_csv(index=False), "tournament_results.csv", "text/csv")
+
+# ================================================================
+# FOOTER
+# ================================================================
+st.markdown("---")
+st.markdown("""
+<p style="font-size:0.82rem;color:#64748B;text-align:center;padding:0.5rem 0">
+  WheatSpec v3 &nbsp;·&nbsp; Manuli Perera &nbsp;·&nbsp; UWA Dissertation 2026 &nbsp;·&nbsp; Open-source MIT licence &nbsp;·&nbsp; Built on <em>Kelly et al. (2023) Food Chemistry</em>
+</p>""", unsafe_allow_html=True)
