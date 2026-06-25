@@ -1,5 +1,5 @@
 # ================================================================
-# wheatspec_app.py  —  WheatSpec v3 (Production Cloud Framework)
+# wheatspec_app.py  —  WheatSpec v3 (Absolute Max-Contrast Edition)
 # Manuli Perera | UWA Dissertation 2026 | Open-source MIT
 # ================================================================
 
@@ -36,7 +36,7 @@ st.set_page_config(
 )
 
 # ================================================================
-# CSS  — Times New Roman + Max Contrast Text & Sidebar Controls
+# CSS  — Times New Roman + Complete Dark Layout Overrides
 # ================================================================
 st.markdown("""
 <style>
@@ -47,15 +47,26 @@ html, body, [class*="css"], div, p, span, label, button, .stTabs, h1, h2, h3, h4
     font-family: 'Times New Roman', Times, Georgia, serif !important; 
 }
 
-/* Hardcode absolute dark viewports to override light-mode browser settings */
+/* Hardcode absolute dark viewports to stop browser light-mode forcing */
 .main { background: #0F172A !important; }
 div[data-testid="stAppViewContainer"] { background-color: #0F172A !important; }
 div[data-testid="stHeader"] { background-color: #0F172A !important; }
 
-/* Main layout text elements forced to bright white */
+/* Force standard text container numbers and paragraphs to bright white/silver */
 .main .stMarkdown p, .main span, .main label, h2, h3, h4, h5, h6 {
     color: #F1F5F9 !important;
     font-size: 11.5pt;
+}
+
+/* Fix table/dataframe contrast numbers (prevents white-on-white grid boxes) */
+div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th, div[data-testid="stDataFrame"] div {
+    color: #FFFFFF !important;
+    background-color: #1E293B !important;
+}
+
+/* Fix slider floating tooltip numbers and labels */
+div[class*="stSlider"] div, div[class*="stSlider"] span, div[class*="stSlider"] p {
+    color: #FFFFFF !important;
 }
 
 /* ── MAXIMUM SIDEBAR INPUT CONTROLS VISIBILITY ── */
@@ -64,7 +75,7 @@ div[data-testid="stSidebarContent"] {
     border-right: 2px solid #334155; 
 }
 
-/* Force ALL sidebar text, labels, headers, and checkboxes to absolute glowing white */
+/* Force ALL sidebar text and input headers to absolute glowing white */
 div[data-testid="stSidebarContent"] label, 
 div[data-testid="stSidebarContent"] p, 
 div[data-testid="stSidebarContent"] span,
@@ -72,9 +83,67 @@ div[data-testid="stSidebarContent"] h2,
 div[data-testid="stSidebarContent"] h3,
 div[data-testid="stSidebarContent"] div {
     color: #FFFFFF !important;
-    font-size: 11pt;
+    font-weight: 600 !important;
 }
-div[data-testid="stSidebarContent"] .stCaption { color: #CBD5E1 !important; font-size: 9.5pt; }
+
+/* Mute widget annotations slightly so they don't look completely cluttered */
+div[data-testid="stSidebarContent"] small,
+div[data-testid="stSidebarContent"] [data-testid="stWidgetLabel"] p,
+div[data-testid="stSidebarContent"] .stCaption {
+    color: #CBD5E1 !important;
+    font-weight: 400 !important;
+}
+
+/* ── Premium Midnight Hero Title Block ── */
+.hero {
+  background: #1E293B;
+  border-radius: 12px; 
+  padding: 2.2rem 2rem; 
+  margin-bottom: 1.5rem;
+  color: #F8FAFC; 
+  border: 1px solid #334155;
+  border-bottom: 3.5px solid #22C55E;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.hero h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 6px 0; color: #FFFFFF !important; }
+.hero p { font-size: 1.1rem; opacity: 0.95; margin: 0; line-height: 1.5; color: #E2E8F0 !important; }
+.hero-chips { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { background: #334155; border: 1px solid #475569;
+        border-radius: 4px; padding: 3px 12px; font-size: 0.85rem; color: #FFFFFF !important; }
+
+/* ── High-Contrast Dashboard Metric Cards ── */
+.mcard { background: #1E293B; border: 1px solid #475569; border-radius: 8px;
+         padding: 1.2rem 1.4rem; margin-bottom: 0.8rem;
+         border-left: 5px solid #22C55E; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+.mcard.blue { border-left-color: #3B82F6; }
+.mcard.amber { border-left-color: #F59E0B; }
+.mcard.purple { border-left-color: #8B5CF6; }
+.mlabel { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;
+          color: #CBD5E1 !important; font-weight: 600; margin-bottom: 6px; }
+.mvalue { font-size: 2rem; font-weight: 700; color: #FFFFFF !important;
+          font-family: 'JetBrains Mono', monospace !important; line-height: 1.1; }
+.msub { font-size: 0.95rem; color: #E2E8F0 !important; margin-top: 5px; }
+.mdiff { font-size: 0.95rem; margin-top: 4px; font-weight: 700; }
+
+/* ── Status and Evaluation Badges ── */
+.badge { display: inline-block; padding: 3px 9px; border-radius: 4px;
+         font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-left: 5px; }
+.bexc  { background: #14532D; color: #4ADE80; border: 1px solid #22C55E; }
+.bqc   { background: #1E3A8A; color: #93C5FD; border: 1px solid #3B82F6; }
+.bscr  { background: #713F12; color: #FDE047; border: 1px solid #EAB308; }
+.bpoor { background: #7F1D1D; color: #FCA5A5; border: 1px solid #EF4444; }
+
+/* ── Context Notification Boxes ── */
+.kbox { background: #14532D; border: 1px solid #22C55E; border-radius: 6px;
+        padding: 0.9rem 1.2rem; font-size: 1rem; color: #FFFFFF !important; margin: 0.8rem 0; }
+.wbox { background: #78350F; border: 1px solid #EAB308; border-radius: 6px;
+        padding: 0.9rem 1.2rem; font-size: 1rem; color: #FFFFFF !important; margin: 0.8rem 0; }
+.ibox { background: #1E3A8A; border: 1px solid #3B82F6; border-radius: 6px;
+        padding: 0.9rem 1.2rem; font-size: 1rem; color: #FFFFFF !important; margin: 0.8rem 0; }
+
+/* ── Publication Section Labels ── */
+.slabel { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.08em;
+          color: #94A3B8; font-weight: 700; margin: 1.6rem 0 0.6rem; }
 
 /* Tab Bar Adjustments */
 .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #0F172A; padding: 4px; border-radius: 8px; }
@@ -110,8 +179,7 @@ def preprocess(X, snv, sg_deriv, sg_window, sg_poly):
     wl = min(sg_window, X.shape[1])
     if wl % 2 == 0: wl -= 1
     if wl > sg_poly and sg_deriv >= 0:
-        X = savgol_filter(X, window_length=wl, polyorder=sg_poly,
-                          deriv=sg_deriv, axis=1)
+        X = savgol_filter(X, window_length=wl, polyorder=sg_poly, deriv=sg_deriv, axis=1)
     return np.nan_to_num(X)
 
 def rpd_v(y_true, y_pred):
@@ -155,98 +223,15 @@ def build_ml(use_bayes, use_rf, use_xgb, rf_n, xgb_n, xgb_lr,
     if use_rf:
         pipes["RandomForest"]  = Pipeline([
             ("sc",StandardScaler()),
-            ("m",RandomForestRegressor(n_estimators=rf_n, max_features="sqrt",
-                                       random_state=42, n_jobs=-1))])
+            ("m",RandomForestRegressor(n_estimators=rf_n, max_features="sqrt", random_state=42, n_jobs=-1))])
     if use_xgb and n_safe>=1:
         pipes["XGBoost"] = Pipeline([
             ("pca",PCA(n_components=n_safe, random_state=42)),
-            ("m",XGBRegressor(n_estimators=xgb_n, learning_rate=xgb_lr,
-                               max_depth=xgb_depth, subsample=0.8,
-                               random_state=42, verbosity=0))])
+            ("m",XGBRegressor(n_estimators=xgb_n, learning_rate=xgb_lr, max_depth=xgb_depth, subsample=0.8, random_state=42, verbosity=0))])
     return pipes
 
 # ================================================================
-# SIDEBAR — MASTER CONFIGURATION UNIT
-# ================================================================
-with st.sidebar:
-    st.markdown("## 📁 Ingestion Hub")
-    uploaded = st.file_uploader("Drop FTIR matrix file below:", type=["csv","xlsx"])
-
-    st.markdown("---")
-    st.markdown("## ⚙️ Preprocessing")
-    apply_snv  = st.checkbox("Standard Normal Variate (SNV)", value=True)
-    sg_deriv   = st.selectbox("Savitzky-Golay derivative", [0,1,2], index=1,
-                               help="0=smooth only · 1=removes baseline · 2=resolves bands")
-    sg_window  = st.slider("SG window size (odd)", 5, 31, 11, 2)
-    sg_poly    = st.slider("SG polynomial order", 1, 4, 2)
-    n_plot     = st.slider("Max spectra to plot", 5, 100, 30, 5)
-
-    st.markdown("---")
-    st.markdown("## 🔬 Models")
-    use_plsr  = st.checkbox("PLSR",          value=True)
-    use_bayes = st.checkbox("BayesianRidge",  value=True)
-    use_rf    = st.checkbox("RandomForest",   value=True)
-    use_xgb   = st.checkbox("XGBoost",        value=True)
-
-    st.markdown("---")
-    st.markdown("## 🎛 Hyperparameters")
-    plsr_max   = st.slider("PLSR max components",    2, 20, 10)
-    test_size  = st.slider("Test fraction",          0.10, 0.40, 0.20, 0.05)
-    rf_n       = st.slider("RF n_estimators",        50, 500, 150, 50)
-    xgb_n      = st.slider("XGBoost n_estimators",   50, 500, 150, 50)
-    xgb_lr     = st.select_slider("XGBoost learning rate", [0.005,0.01,0.02,0.05,0.1,0.2], value=0.05)
-    xgb_depth  = st.slider("XGBoost max_depth",      2, 8, 3)
-    n_pca      = st.slider("XGBoost PCA components", 5, 50, 15)
-
-    st.markdown("---")
-    st.markdown("## 📐 Spectral regions")
-    region_raw = st.text_area("Regions Config (Name | Low | High)",
-        "A1 Moisture | 2990 | 3680\n"
-        "A2 Fat C-H | 2825 | 2990\n"
-        "A3 Fat C=O | 1710 | 1775\n"
-        "A4 Amide I+II | 1480 | 1710\n"
-        "A5 Amide III | 1180 | 1480\n"
-        "A6 Starch | 810 | 1180\n"
-        "Full Spectrum | 650 | 4000", height=180)
-
-    REGIONS = {}
-    for line in region_raw.strip().split("\n"):
-        parts = [p.strip() for p in line.split("|")]
-        if len(parts)==3:
-            try: REGIONS[parts[0]] = (float(parts[1]), float(parts[2]))
-            except: pass
-
-    st.markdown("---")
-    st.markdown("## 📊 Benchmarks")
-    bench_raw = st.text_area("Reference R² Benchmarks (Trait | R²)",
-        "Protein | 0.963\nExtensibility | 0.927\n"
-        "Absorption | 0.700\nRmax | 0.482\nDDT | 0.500", height=130)
-
-    BENCH = {}
-    for line in bench_raw.strip().split("\n"):
-        parts = [p.strip() for p in line.split("|")]
-        if len(parts)==2:
-            try: BENCH[parts[0]] = float(parts[1])
-            except: pass
-
-    st.markdown("---")
-    st.markdown("## 🏷 Column exclusions")
-    excl_raw = st.text_input("Metadata ID strings to ignore:", "Variety,variety,Cultivar,cultivar,Sample,sample,ID,id,Name,name,Seed,seed")
-    EXCL = {c.strip().lower() for c in excl_raw.split(",")}
-
-    st.markdown("---")
-    st.markdown("## 🎨 Cultivar colours")
-    colour_raw = st.text_area("Scatter Hex Codes (Class | Hex)",
-        "MACE | #3B82F6\nSCEPTER | #60A5FA\nCORACK | #0D9488\n"
-        "MAGENTA | #F43F5E\nEMU_ROCK | #F59E0B\nZEN | #10B981", height=140)
-
-    CULT_COLOURS = {}
-    for line in colour_raw.strip().split("\n"):
-        parts = [p.strip() for p in line.split("|")]
-        if len(parts)==2: CULT_COLOURS[parts[0]] = parts[1]
-
-# ================================================================
-# SHARED ARRAYS MATRIX PARSER
+# SHARED ARRAYS MATRIX INGESTION STREAM
 # ================================================================
 df = wave_cols = non_wave = trait_cols = all_cols = None
 if uploaded:
@@ -295,8 +280,9 @@ with tab1:
                 fig = go.Figure()
                 for i in range(n_show):
                     fig.add_trace(go.Scatter(x=wn, y=data[i], mode="lines", name=labels[i], line=dict(width=0.9), opacity=0.75))
-                fig.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155"),
-                                   yaxis_title="Intensity", height=330, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', showlegend=False, margin=dict(l=40,r=10,t=20,b=40))
+                fig.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155", titlefont=dict(color='#FFFFFF'), tickfont=dict(color='#FFFFFF')),
+                                   yaxis_title="Intensity", yaxis=dict(gridcolor="#334155", titlefont=dict(color='#FFFFFF'), tickfont=dict(color='#FFFFFF')),
+                                   height=330, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', showlegend=False, margin=dict(l=40,r=10,t=20,b=40))
                 st.plotly_chart(fig, use_container_width=True)
 
         if REGIONS:
@@ -308,8 +294,9 @@ with tab1:
             for idx, (rn, (lo, hi)) in enumerate(REGIONS.items()):
                 fig_r.add_vrect(x0=lo, x1=hi, fillcolor=palette[idx % len(palette)], opacity=0.18, layer="below", line_width=0,
                                  annotation_text=rn.split(" ")[0], annotation_position="top left", annotation_font_color="#FFFFFF", annotation_font_size=10)
-            fig_r.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155"),
-                                yaxis_title="Processed intensity", height=370, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=40,b=40))
+            fig_r.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155", titlefont=dict(color='#FFFFFF'), tickfont=dict(color='#FFFFFF')),
+                                yaxis_title="Processed intensity", yaxis=dict(gridcolor="#334155", titlefont=dict(color='#FFFFFF'), tickfont=dict(color='#FFFFFF')),
+                                height=370, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=40,b=40))
             st.plotly_chart(fig_r, use_container_width=True)
 
         if id_col:
@@ -320,8 +307,9 @@ with tab1:
             for grp, sub in df_proc.groupby("_label"):
                 mean_spec = sub.drop("_label", axis=1).mean()
                 fig_m.add_trace(go.Scatter(x=wn, y=mean_spec.values, mode="lines", name=str(grp), line=dict(width=2.0)))
-            fig_m.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155"),
-                                  yaxis_title="Mean intensity", height=320, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=20,b=40))
+            fig_m.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155", titlefont=dict(color='#FFFFFF'), tickfont=dict(color='#FFFFFF')),
+                                  yaxis_title="Mean intensity", yaxis=dict(gridcolor="#334155", titlefont=dict(color='#FFFFFF'), tickfont=dict(color='#FFFFFF')),
+                                  height=320, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', margin=dict(l=40,r=10,t=20,b=40))
             st.plotly_chart(fig_m, use_container_width=True)
 
 # ──────────────────────────────────────────────────────────────
