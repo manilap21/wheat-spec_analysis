@@ -72,67 +72,9 @@ div[data-testid="stSidebarContent"] h2,
 div[data-testid="stSidebarContent"] h3,
 div[data-testid="stSidebarContent"] div {
     color: #FFFFFF !important;
-    font-weight: 600 !important;
+    font-size: 11pt;
 }
-
-/* Specifically brighten slider numbers and small text area captions */
-div[data-testid="stSidebarContent"] small,
-div[data-testid="stSidebarContent"] [data-testid="stWidgetLabel"] p,
-div[data-testid="stSidebarContent"] .stCaption {
-    color: #CBD5E1 !important;
-    font-weight: 400 !important;
-}
-
-/* ── Premium Midnight Hero Title Block ── */
-.hero {
-  background: #1E293B;
-  border-radius: 12px; 
-  padding: 2.2rem 2rem; 
-  margin-bottom: 1.5rem;
-  color: #F8FAFC; 
-  border: 1px solid #334155;
-  border-bottom: 3.5px solid #22C55E;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-.hero h1 { font-size: 2.4rem; font-weight: 700; margin: 0 0 6px 0; color: #FFFFFF !important; }
-.hero p { font-size: 1.1rem; opacity: 0.95; margin: 0; line-height: 1.5; color: #E2E8F0 !important; }
-.hero-chips { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
-.chip { background: #334155; border: 1px solid #475569;
-        border-radius: 4px; padding: 3px 12px; font-size: 0.85rem; color: #FFFFFF !important; }
-
-/* ── High-Contrast Dashboard Metric Cards ── */
-.mcard { background: #1E293B; border: 1px solid #475569; border-radius: 8px;
-         padding: 1.2rem 1.4rem; margin-bottom: 0.8rem;
-         border-left: 5px solid #22C55E; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
-.mcard.blue { border-left-color: #3B82F6; }
-.mcard.amber { border-left-color: #F59E0B; }
-.mcard.purple { border-left-color: #8B5CF6; }
-.mlabel { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;
-          color: #CBD5E1 !important; font-weight: 600; margin-bottom: 6px; }
-.mvalue { font-size: 2rem; font-weight: 700; color: #FFFFFF !important;
-          font-family: 'JetBrains Mono', monospace !important; line-height: 1.1; }
-.msub { font-size: 0.95rem; color: #E2E8F0 !important; margin-top: 5px; }
-.mdiff { font-size: 0.95rem; margin-top: 4px; font-weight: 700; }
-
-/* ── Status and Evaluation Badges ── */
-.badge { display: inline-block; padding: 3px 9px; border-radius: 4px;
-         font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-left: 5px; }
-.bexc  { background: #14532D; color: #4ADE80; border: 1px solid #22C55E; }
-.bqc   { background: #1E3A8A; color: #93C5FD; border: 1px solid #3B82F6; }
-.bscr  { background: #713F12; color: #FDE047; border: 1px solid #EAB308; }
-.bpoor { background: #7F1D1D; color: #FCA5A5; border: 1px solid #EF4444; }
-
-/* ── Context Notification Boxes ── */
-.kbox { background: #14532D; border: 1px solid #22C55E; border-radius: 6px;
-        padding: 0.9rem 1.2rem; font-size: 1rem; color: #FFFFFF !important; margin: 0.8rem 0; }
-.wbox { background: #78350F; border: 1px solid #EAB308; border-radius: 6px;
-        padding: 0.9rem 1.2rem; font-size: 1rem; color: #FFFFFF !important; margin: 0.8rem 0; }
-.ibox { background: #1E3A8A; border: 1px solid #3B82F6; border-radius: 6px;
-        padding: 0.9rem 1.2rem; font-size: 1rem; color: #FFFFFF !important; margin: 0.8rem 0; }
-
-/* ── Publication Section Labels ── */
-.slabel { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.08em;
-          color: #94A3B8; font-weight: 700; margin: 1.6rem 0 0.6rem; }
+div[data-testid="stSidebarContent"] .stCaption { color: #CBD5E1 !important; font-size: 9.5pt; }
 
 /* Tab Bar Adjustments */
 .stTabs [data-baseweb="tab-list"] { gap: 10px; background-color: #0F172A; padding: 4px; border-radius: 8px; }
@@ -224,7 +166,7 @@ def build_ml(use_bayes, use_rf, use_xgb, rf_n, xgb_n, xgb_lr,
     return pipes
 
 # ================================================================
-# SIDEBAR — MASTER UPLOADER WITH CORRECT KEY MATCHING
+# SIDEBAR — MASTER CONFIGURATION UNIT
 # ================================================================
 with st.sidebar:
     st.markdown("## 📁 Ingestion Hub")
@@ -304,7 +246,7 @@ with st.sidebar:
         if len(parts)==2: CULT_COLOURS[parts[0]] = parts[1]
 
 # ================================================================
-# SHARED DATA ARRAYS ALIGNMENT
+# SHARED ARRAYS MATRIX PARSER
 # ================================================================
 df = wave_cols = non_wave = trait_cols = all_cols = None
 if uploaded:
@@ -354,8 +296,7 @@ with tab1:
                 for i in range(n_show):
                     fig.add_trace(go.Scatter(x=wn, y=data[i], mode="lines", name=labels[i], line=dict(width=0.9), opacity=0.75))
                 fig.update_layout(xaxis=dict(title="Wavenumber (cm⁻¹)", autorange="reversed", gridcolor="#334155"),
-                                   yaxis_title="Intensity", height=330, template="plotly_dark", 
-                                   paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', showlegend=False, margin=dict(l=40,r=10,t=20,b=40))
+                                   yaxis_title="Intensity", height=330, template="plotly_dark", paper_bgcolor='#1E293B', plot_bgcolor='#1E293B', showlegend=False, margin=dict(l=40,r=10,t=20,b=40))
                 st.plotly_chart(fig, use_container_width=True)
 
         if REGIONS:
@@ -384,7 +325,7 @@ with tab1:
             st.plotly_chart(fig_m, use_container_width=True)
 
 # ──────────────────────────────────────────────────────────────
-# TAB 2 — RHEOLOGY PREDICTION
+# TAB 2 — MECHANICAL PHENOTYPES PREDICTOR
 # ──────────────────────────────────────────────────────────────
 with tab2:
     st.subheader("Dough rheology prediction — all models, any trait, any region")
